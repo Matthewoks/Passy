@@ -34,6 +34,9 @@ class MyList extends StatefulWidget {
 
 class _MyListState extends State<MyList> {
   List<ListItem> elenco = [];
+
+  bool _isSearching=false;
+  final TextEditingController _searchController = TextEditingController();
   TextEditingController controller1 = TextEditingController();
 
   TextEditingController controller3 = TextEditingController();
@@ -69,9 +72,25 @@ class _MyListState extends State<MyList> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Elenco credenziali', style: TextStyle(color: Colors.black)),
+       appBar: AppBar(
+        title: _isSearching ? TextField(
+          controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Cerca..',
+              border: InputBorder.none,
+              hintStyle: TextStyle(color: Colors.black54),
+            ),
+          style: TextStyle(color: Colors.black),
+        ) : const Text('Elenco credenziali', style: TextStyle(color: Colors.black)),
         backgroundColor: const Color.fromARGB(169, 255, 171, 64),
+        actions: [IconButton(
+          icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.black),
+          onPressed: () {setState(() {
+            _isSearching =! _isSearching;
+            if(!_isSearching){
+              _searchController.clear();
+            }
+          });}, )]
       ),
       body: Column(
         children: [
