@@ -34,17 +34,25 @@ class MyList extends StatefulWidget {
 
 class _MyListState extends State<MyList> {
   List<ListItem> elenco = [];
+  List<ListItem> elencoFiltrato = [];
 
-  bool _isSearching=false;
+  bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   TextEditingController controller1 = TextEditingController();
-
   TextEditingController controller3 = TextEditingController();
   TextEditingController controller2 = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _caricaElenco();
+    _searchController.addListener(_filterElenco);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _caricaElenco() async {
@@ -52,12 +60,11 @@ class _MyListState extends State<MyList> {
     setState(() {
       elenco = (prefs.getStringList('elenco') ?? []).map((e) {
         final elements = e.split('|');
-        // Rimuovi 'W.' iniziale da elements[2] se presente
         String elemento2 = elements[2].startsWith('W.') ? elements[2].substring(2) : elements[1];
-        // Rimuovi '!@1' finale da elements[2] se presente
         elemento2 = elemento2.endsWith('!@1') ? elemento2.substring(0, elemento2.length - 3) : elemento2;
         return ListItem(elements[0], elements[1], elemento2);
       }).toList();
+      elencoFiltrato = elenco; // Inizialmente elencoFiltrato è uguale a elenco
     });
   }
 
@@ -68,29 +75,50 @@ class _MyListState extends State<MyList> {
     prefs.setStringList('elenco', elencoStrings);
   }
 
+  void _filterElenco() {
+    setState(() {
+      if (_isSearching && _searchController.text.isNotEmpty) {
+        elencoFiltrato = elenco
+            .where((item) =>
+            item.elemento1.toLowerCase().contains(_searchController.text.toLowerCase()))
+            .toList();
+      } else {
+        elencoFiltrato = elenco;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-       appBar: AppBar(
-        title: _isSearching ? TextField(
+      backgroundColor: Colors.black12,
+      appBar: AppBar(
+        title: _isSearching
+            ? TextField(
           controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Cerca..',
-              border: InputBorder.none,
-              hintStyle: TextStyle(color: Colors.black54),
-            ),
+          decoration: InputDecoration(
+            hintText: 'Cerca...',
+            border: InputBorder.none,
+            hintStyle: TextStyle(color: Colors.black),
+          ),
           style: TextStyle(color: Colors.black),
-        ) : const Text('Elenco credenziali', style: TextStyle(color: Colors.black)),
+        )
+            : const Text('Elenco credenziali', style: TextStyle(color: Colors.black)),
         backgroundColor: const Color.fromARGB(169, 255, 171, 64),
-        actions: [IconButton(
-          icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.black),
-          onPressed: () {setState(() {
-            _isSearching =! _isSearching;
-            if(!_isSearching){
-              _searchController.clear();
-            }
-          });}, )]
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.black45),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  elencoFiltrato = elenco; // Ripristina elenco completo
+                }
+              });
+            },
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -146,7 +174,6 @@ class _MyListState extends State<MyList> {
                   elenco.add(
                     ListItem(
                       controller1.text.toUpperCase(),
-
                       controller3.text,
                       controller2.text,
                     ),
@@ -156,6 +183,7 @@ class _MyListState extends State<MyList> {
                   controller3.clear();
                 });
                 _salvaElenco();
+                _filterElenco(); // Aggiorna filtro elenco
               }
             },
             style: ElevatedButton.styleFrom(
@@ -170,44 +198,72 @@ class _MyListState extends State<MyList> {
             child: ReorderableListView(
               onReorder: (oldIndex, newIndex) {
                 setState(() {
-                  if (newIndex > oldIndex) {
-                    newIndex -= 1;
-                  }
+                  if (newIndex > oldIndex) newIndex -= 1;
                   final ListItem item = elenco.removeAt(oldIndex);
                   elenco.insert(newIndex, item);
                   _salvaElenco();
                 });
               },
-              children: elenco.map((item) {
+              children: elencoFiltrato.map((item) {
                 return ReorderableDelayedDragStartListener(
                   key: Key(item.elemento1),
-                  index: elenco.indexOf(item),
+                  index: elencoFiltrato.indexOf(item),
                   child: ListTile(
-                    key: Key(item.elemento1),
+                  /*  key: Key(item.elemento1),
                     title: Text(
                       '${item.elemento1} - ${item.elemento3} - ${item.elemento2}',
                       style: const TextStyle(
                         color: Colors.orangeAccent,
                         fontWeight: FontWeight.bold,
-                      ),
+                      ),*/
+                    key: Key(item.elemento1),
+                    title: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${item.elemento1} - ',
+                          style: TextStyle(
+                            color: Colors.orangeAccent,
+                            fontWeight: FontWeight.bold,
+                          )
+
+                        ),
+                        TextSpan(
+                            text: '${item.elemento3} - ',
+                            style: TextStyle(
+                                color: Color.fromARGB(90, 255, 255, 255),
+                              fontWeight: FontWeight.bold,
+                            )
+
+                        ),  TextSpan(
+                            text: item.elemento2,
+                            style: TextStyle(
+                              color: Color.fromARGB(90, 255, 255, 255),
+                              fontWeight: FontWeight.bold,
+                            )
+
+                        )
+                      ]
+                    ),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.copy,
-                              color: Color.fromARGB(105, 255, 171, 64)),
+                              color: Color.fromARGB(100, 255, 171, 64)),
                           onPressed: () {
                             _selezionaTesto(item);
                           },
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete,
-                              color: Color.fromARGB(105, 255, 171, 64)),
+                              color: Color.fromARGB(100, 255, 171, 64)),
                           onPressed: () {
                             setState(() {
                               elenco.remove(item);
                               _salvaElenco();
+                              _filterElenco();
                             });
                           },
                         ),
